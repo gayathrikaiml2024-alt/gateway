@@ -29,6 +29,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if self.path != '/gateway' or not hmac.compare_digest(
                     self.headers.get('Authorization',''), 'Bearer '+os.environ['TEAM_GATEWAY_TOKEN']):
+                import sys
+                print('GATEWAY_ERROR bad path or token', self.path, file=sys.stderr, flush=True)
                 self.send_error(403); return
             size = int(self.headers.get('Content-Length','0'))
             if not 0 < size <= 65536: raise ValueError()
@@ -54,7 +56,14 @@ class Handler(BaseHTTPRequestHandler):
                 if type(usage.get(key)) is int and usage[key]>=0}}).encode()
             self.send_response(200); self.send_header('Content-Type','application/json')
             self.send_header('Content-Length',str(len(body))); self.end_headers(); self.wfile.write(body)
-        except Exception:
+        except Exception as e:
+            import sys
+            detail = ''
+            try:
+                detail = e.read(300).decode('utf8', 'replace')
+            except Exception:
+                pass
+            print('GATEWAY_ERROR', type(e).__name__, getattr(e, 'code', ''), str(e)[:200], detail, file=sys.stderr, flush=True)
             self.send_error(503, 'Team gateway unavailable')
 
 
